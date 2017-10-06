@@ -62,7 +62,8 @@ func readTxtFile(path string) *Dependencies {
 }
 
 type jsonData struct {
-	Deps map[string]string `json:"dependencies"`
+	Deps    map[string]string `json:"dependencies"`
+	DevDeps map[string]string `json:"devDependencies"`
 }
 
 func readJsonFile(path string) *Dependencies {
@@ -72,7 +73,19 @@ func readJsonFile(path string) *Dependencies {
 	res := jsonData{}
 	json.Unmarshal([]byte(row_json), &res)
 
-	return &Dependencies{Data: res.Deps}
+	mergedDict := make(map[string]string)
+
+	// Iterate dependencies
+	for key, val := range res.Deps {
+		mergedDict[key] = val
+	}
+
+	// Iterage devDependencies
+	for key, val := range res.DevDeps {
+		mergedDict[key] = val
+	}
+
+	return &Dependencies{Data: mergedDict}
 
 }
 
@@ -106,11 +119,11 @@ func isMapDiff(mapOne, mapTwo map[string]string) bool {
 	equal := reflect.DeepEqual(mapOne, mapTwo)
 
 	if equal {
-		log.Println("Dictionaries equal")
+		log.Println("Equal")
 		return false
 	}
 
-	log.Println("They're unequal")
+	log.Println("Different")
 	return true
 
 }
@@ -172,7 +185,7 @@ func main() {
 		log.Println("package.json:", packageJson)
 
 		newPack := readJsonFile(packageJson)
-		//log.Println(newPack)
+		log.Println(newPack)
 
 		// Load old data
 		var oldPack = new(Dependencies)
