@@ -14,9 +14,9 @@ import (
 	"strings"
 )
 
-const (
-	packageFile      = "/package.gob"
-	requirementsFile = "/requirements.gob"
+var (
+	packageFile, _      = filepath.Abs("/package.gob")
+	requirementsFile, _ = filepath.Abs("/requirements.gob")
 )
 
 func check(e error) {
@@ -138,18 +138,18 @@ func main() {
 		&pkgJson,
 		"npm",
 		"",
-		"Relative path to package.json file. Ex: ./isChanged -npm=/package.json")
+		"Relative path to package.json file. Ex: ./isChangedLinux -npm=/package.json")
 
 	flag.StringVar(
 		&reqTxt,
 		"pip",
 		"",
-		"Relative path to requirements.txt. Ex: ./isChanged -pip=/requirements.txt")
+		"Relative path to requirements.txt. Ex: ./isChangedLinux -pip=/requirements.txt")
 
 	flag.Parse()
 
 	if reqTxt != "" {
-		requirements := dir + reqTxt
+		requirements, err := filepath.Abs(dir + reqTxt)
 		log.Println("requirements.txt:", requirements)
 
 		newReq := readTxtFile(requirements)
@@ -157,7 +157,8 @@ func main() {
 
 		// Load old data
 		var oldReq = new(Dependencies)
-		err = Load(dir+requirementsFile, oldReq)
+		oldFile, _ := filepath.Abs(dir + requirementsFile)
+		err = Load(oldFile, oldReq)
 		if err != nil {
 			oldReq = new(Dependencies)
 		}
@@ -180,16 +181,17 @@ func main() {
 	}
 
 	if pkgJson != "" {
-		packageJson := dir + pkgJson
+		packageJson, err := filepath.Abs(dir + pkgJson)
 
 		log.Println("package.json:", packageJson)
 
 		newPack := readJsonFile(packageJson)
-		log.Println(newPack)
+		//log.Println(newPack)
 
 		// Load old data
 		var oldPack = new(Dependencies)
-		err = Load(dir+packageFile, oldPack)
+		oldFile, _ := filepath.Abs(dir + packageFile)
+		err = Load(oldFile, oldPack)
 		if err != nil {
 			oldPack = new(Dependencies)
 		}
@@ -209,5 +211,5 @@ func main() {
 		os.Exit(11)
 	}
 
-	fmt.Println("Put arguments: npm or pip. Example: ./isChanged -npm=/package.json")
+	fmt.Println("Put arguments: npm or pip. Example: ./isChangedLinux -npm=/package.json")
 }
