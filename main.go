@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	packageFile, _      = filepath.Abs("/package.gob")
+	gulpFile, _         = filepath.Abs("/gulp.gob")
+	webpackFile, _      = filepath.Abs("/webpack.gob")
 	requirementsFile, _ = filepath.Abs("/requirements.gob")
 )
 
@@ -133,12 +134,18 @@ func main() {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	check(err)
 
-	var pkgJson, reqTxt string
+	var webpackJson, gulpJson, reqTxt string
 	flag.StringVar(
-		&pkgJson,
-		"npm",
+		&webpackJson,
+		"webpack",
 		"",
-		"Relative path to package.json file. Ex: ./isChangedLinux -npm=/package.json")
+		"Relative path to package.json file. Ex: ./isChangedLinux -webpack=/package.json")
+
+	flag.StringVar(
+		&gulpJson,
+		"gulp",
+		"",
+		"Relative path to package.json file. Ex: ./isChangedLinux -gulp=/package.json")
 
 	flag.StringVar(
 		&reqTxt,
@@ -180,28 +187,59 @@ func main() {
 		os.Exit(11)
 	}
 
-	if pkgJson != "" {
-		packageJson, err := filepath.Abs(dir + pkgJson)
+	if webpackJson != "" {
+		packageJson, err := filepath.Abs(dir + webpackJson)
 
-		log.Println("package.json:", packageJson)
+		log.Println("Webpack package.json:", packageJson)
 
 		newPack := readJsonFile(packageJson)
 		//log.Println(newPack)
 
 		// Load old data
 		var oldPack = new(Dependencies)
-		oldFile, _ := filepath.Abs(dir + packageFile)
+		oldFile, _ := filepath.Abs(dir + webpackFile)
 		err = Load(oldFile, oldPack)
 		if err != nil {
 			oldPack = new(Dependencies)
 		}
 
 		changed := isMapDiff(oldPack.Data, newPack.Data)
-		log.Println("package.json changed: ", changed)
+		log.Println("Webpack package.json changed: ", changed)
 		log.Println("===========================================")
 
 		if changed {
-			err = Save(dir+packageFile, newPack)
+			err = Save(dir+webpackFile, newPack)
+			if err != nil {
+				log.Printf("Can't save previous package.json. Error: %s", err)
+			}
+			os.Exit(10)
+		}
+
+		os.Exit(11)
+	}
+
+	if gulpJson != "" {
+		gulpJson, err := filepath.Abs(dir + gulpJson)
+
+		log.Println("Gulp package.json:", gulpJson)
+
+		newPack := readJsonFile(gulpJson)
+		//log.Println(newPack)
+
+		// Load old data
+		var oldPack = new(Dependencies)
+		oldFile, _ := filepath.Abs(dir + gulpFile)
+		err = Load(oldFile, oldPack)
+		if err != nil {
+			oldPack = new(Dependencies)
+		}
+
+		changed := isMapDiff(oldPack.Data, newPack.Data)
+		log.Println("Gulp package.json changed: ", changed)
+		log.Println("===========================================")
+
+		if changed {
+			err = Save(dir+gulpFile, newPack)
 			if err != nil {
 				log.Printf("Can't save previous package.json. Error: %s", err)
 			}
