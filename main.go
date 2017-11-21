@@ -15,9 +15,7 @@ import (
 )
 
 var (
-	gulpFile, _         = filepath.Abs("/gulp.gob")
-	webpackFile, _      = filepath.Abs("/webpack.gob")
-	requirementsFile, _ = filepath.Abs("/requirements.gob")
+	historyFile = "history.gob"
 )
 
 func check(e error) {
@@ -27,7 +25,13 @@ func check(e error) {
 }
 
 type Dependencies struct {
-	Data map[string]string
+	Data map[string]map[string]string
+}
+
+// internal structure: jsonData used for parsing package.json file
+type jsonData struct {
+	Deps    map[string]string `json:"dependencies"`
+	DevDeps map[string]string `json:"devDependencies"`
 }
 
 func readTxtFile(path string) *Dependencies {
@@ -59,12 +63,10 @@ func readTxtFile(path string) *Dependencies {
 		log.Fatal(err)
 	}
 
-	return &Dependencies{Data: req}
-}
+	finalMap := make(map[string]map[string]string)
+	finalMap[path] = req
 
-type jsonData struct {
-	Deps    map[string]string `json:"dependencies"`
-	DevDeps map[string]string `json:"devDependencies"`
+	return &Dependencies{Data: finalMap}
 }
 
 func readJsonFile(path string) *Dependencies {
@@ -86,7 +88,10 @@ func readJsonFile(path string) *Dependencies {
 		mergedDict[key] = val
 	}
 
-	return &Dependencies{Data: mergedDict}
+	finalMap := make(map[string]map[string]string)
+	finalMap[path] = mergedDict
+
+	return &Dependencies{Data: finalMap}
 
 }
 
@@ -134,120 +139,77 @@ func main() {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	check(err)
 
-	var webpackJson, gulpJson, reqTxt string
+	var npmTxt, reqTxt string
 	flag.StringVar(
-		&webpackJson,
-		"webpack",
+		&npmTxt,
+		"npm",
 		"",
-		"Relative path to package.json file. Ex: ./isChangedLinux -webpack=/package.json")
-
-	flag.StringVar(
-		&gulpJson,
-		"gulp",
-		"",
-		"Relative path to package.json file. Ex: ./isChangedLinux -gulp=/package.json")
+		"Full path to package.json file. Ex: ./isChangedLinux -npm=/home/package.json")
 
 	flag.StringVar(
 		&reqTxt,
 		"pip",
 		"",
-		"Relative path to requirements.txt. Ex: ./isChangedLinux -pip=/requirements.txt")
+		"Full path to requirements.txt. Ex: ./isChangedLinux -pip=/home/requirements.txt")
 
 	flag.Parse()
 
+	fileToCheck := ""
+	inputData := new(Dependencies)
 	if reqTxt != "" {
-		requirements, err := filepath.Abs(dir + reqTxt)
+		fileToCheck = reqTxt
+		requirements, err := filepath.Abs(reqTxt)
+		check(err)
 		log.Println("requirements.txt:", requirements)
 
-		newReq := readTxtFile(requirements)
-		//log.Println("New Requirements: ", newReq.Data)
+		inputData = readTxtFile(requirements)
+		log.Println("New Requirements: ", inputData.Data)
 
-		// Load old data
-		var oldReq = new(Dependencies)
-		oldFile, _ := filepath.Abs(dir + requirementsFile)
-		err = Load(oldFile, oldReq)
-		if err != nil {
-			oldReq = new(Dependencies)
-		}
+	} else if npmTxt != "" {
+		fileToCheck = npmTxt
+		packageJson, err := filepath.Abs(npmTxt)
 
-		//log.Println("Old Requirements: ", oldReq.Data)
-
-		// Compare old and new requirements.txt
-		changed := isMapDiff(oldReq.Data, newReq.Data)
-		log.Println("requirements.txt changed: ", changed)
-		log.Println("===========================================")
-
-		if changed {
-			err = Save(dir+requirementsFile, newReq)
-			if err != nil {
-				log.Printf("Can't save previous requirements. Error: %s", err)
-			}
-			os.Exit(10)
-		}
-		os.Exit(11)
-	}
-
-	if webpackJson != "" {
-		packageJson, err := filepath.Abs(dir + webpackJson)
-
+		check(err)
 		log.Println("Webpack package.json:", packageJson)
 
-		newPack := readJsonFile(packageJson)
-		//log.Println(newPack)
-
-		// Load old data
-		var oldPack = new(Dependencies)
-		oldFile, _ := filepath.Abs(dir + webpackFile)
-		err = Load(oldFile, oldPack)
-		if err != nil {
-			oldPack = new(Dependencies)
-		}
-
-		changed := isMapDiff(oldPack.Data, newPack.Data)
-		log.Println("Webpack package.json changed: ", changed)
-		log.Println("===========================================")
-
-		if changed {
-			err = Save(dir+webpackFile, newPack)
-			if err != nil {
-				log.Printf("Can't save previous package.json. Error: %s", err)
-			}
-			os.Exit(10)
-		}
-
-		os.Exit(11)
+		inputData = readJsonFile(packageJson)
+		log.Println(inputData)
 	}
 
-	if gulpJson != "" {
-		gulpJson, err := filepath.Abs(dir + gulpJson)
-
-		log.Println("Gulp package.json:", gulpJson)
-
-		newPack := readJsonFile(gulpJson)
-		//log.Println(newPack)
-
-		// Load old data
-		var oldPack = new(Dependencies)
-		oldFile, _ := filepath.Abs(dir + gulpFile)
-		err = Load(oldFile, oldPack)
-		if err != nil {
-			oldPack = new(Dependencies)
-		}
-
-		changed := isMapDiff(oldPack.Data, newPack.Data)
-		log.Println("Gulp package.json changed: ", changed)
-		log.Println("===========================================")
-
-		if changed {
-			err = Save(dir+gulpFile, newPack)
-			if err != nil {
-				log.Printf("Can't save previous package.json. Error: %s", err)
-			}
-			os.Exit(10)
-		}
-
-		os.Exit(11)
+	// Load old data
+	var oldData = new(Dependencies)
+	oldFile, _ := filepath.Abs(dir + "/" + historyFile)
+	err = Load(oldFile, oldData)
+	if err != nil {
+		log.Println("Error:", err)
+		value := make(map[string]map[string]string)
+		value[reqTxt] = make(map[string]string)
+		oldData.Data = value
 	}
+
+	// Check if this PATH checked before
+	if _, ok := oldData.Data[fileToCheck]; !ok {
+		value := make(map[string]map[string]string)
+		value[reqTxt] = make(map[string]string)
+		oldData.Data = value
+	}
+
+	log.Println("Old Requirements: ", oldData.Data[fileToCheck])
+
+	// Compare old and new data
+	changed := isMapDiff(oldData.Data[fileToCheck], inputData.Data[reqTxt])
+	log.Println("Data changed: ", changed)
+	log.Println("===========================================")
+
+	if changed {
+		oldData.Data[fileToCheck] = inputData.Data[fileToCheck]
+		err = Save(dir+"/"+historyFile, oldData)
+		if err != nil {
+			log.Printf("Can't save previous requirements. Error: %s", err)
+		}
+		os.Exit(10)
+	}
+	os.Exit(11)
 
 	fmt.Println("Put arguments: npm or pip. Example: ./isChangedLinux -npm=/package.json")
 }
