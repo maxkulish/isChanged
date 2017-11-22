@@ -160,28 +160,27 @@ func main() {
 		fileToCheck = reqTxt
 		requirements, err := filepath.Abs(reqTxt)
 		check(err)
-		log.Println("requirements.txt:", requirements)
+		log.Println("[pip] requirements.txt:", requirements)
 
 		inputData = readTxtFile(requirements)
-		log.Println("New Requirements: ", inputData.Data)
-
+		log.Println("[pip] New Requirements:", inputData.Data)
 	} else if npmTxt != "" {
 		fileToCheck = npmTxt
 		packageJson, err := filepath.Abs(npmTxt)
 
 		check(err)
-		log.Println("Webpack package.json:", packageJson)
+		log.Println("[npm] package.json:", packageJson)
 
 		inputData = readJsonFile(packageJson)
-		log.Println(inputData)
+		log.Println("[npm] New npm packages:", inputData.Data)
 	}
 
-	// Load old data
+	// Load old data from history.gob
 	var oldData = new(Dependencies)
 	oldFile, _ := filepath.Abs(dir + "/" + historyFile)
 	err = Load(oldFile, oldData)
 	if err != nil {
-		log.Println("Error:", err)
+		log.Printf("Can't open history.gob. Error: %s\n", err)
 		value := make(map[string]map[string]string)
 		value[reqTxt] = make(map[string]string)
 		oldData.Data = value
@@ -189,15 +188,14 @@ func main() {
 
 	// Check if this PATH checked before
 	if _, ok := oldData.Data[fileToCheck]; !ok {
-		value := make(map[string]map[string]string)
-		value[reqTxt] = make(map[string]string)
-		oldData.Data = value
+		value := make(map[string]string)
+		oldData.Data[fileToCheck] = value
 	}
 
-	log.Println("Old Requirements: ", oldData.Data[fileToCheck])
+	log.Println("Old Requirements: ", oldData.Data)
 
 	// Compare old and new data
-	changed := isMapDiff(oldData.Data[fileToCheck], inputData.Data[reqTxt])
+	changed := isMapDiff(oldData.Data[fileToCheck], inputData.Data[fileToCheck])
 	log.Println("Data changed: ", changed)
 	log.Println("===========================================")
 
@@ -205,7 +203,7 @@ func main() {
 		oldData.Data[fileToCheck] = inputData.Data[fileToCheck]
 		err = Save(dir+"/"+historyFile, oldData)
 		if err != nil {
-			log.Printf("Can't save previous requirements. Error: %s", err)
+			log.Printf("Can't save new data to history.gob. Error: %s", err)
 		}
 		os.Exit(10)
 	}
