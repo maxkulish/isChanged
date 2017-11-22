@@ -160,19 +160,19 @@ func main() {
 		fileToCheck = reqTxt
 		requirements, err := filepath.Abs(reqTxt)
 		check(err)
-		log.Println("[pip] requirements.txt:", requirements)
+		//log.Println("[pip] requirements.txt:", requirements)
 
 		inputData = readTxtFile(requirements)
-		log.Println("[pip] New Requirements:", inputData.Data)
+		//log.Println("[pip] New Requirements:", inputData.Data)
 	} else if npmTxt != "" {
 		fileToCheck = npmTxt
 		packageJson, err := filepath.Abs(npmTxt)
 
 		check(err)
-		log.Println("[npm] package.json:", packageJson)
+		//log.Println("[npm] package.json:", packageJson)
 
 		inputData = readJsonFile(packageJson)
-		log.Println("[npm] New npm packages:", inputData.Data)
+		//log.Println("[npm] New npm packages:", inputData.Data)
 	}
 
 	// Load old data from history.gob
@@ -192,7 +192,7 @@ func main() {
 		oldData.Data[fileToCheck] = value
 	}
 
-	log.Println("Old Requirements: ", oldData.Data)
+	//log.Println("Old Requirements: ", oldData.Data)
 
 	// Compare old and new data
 	changed := isMapDiff(oldData.Data[fileToCheck], inputData.Data[fileToCheck])
